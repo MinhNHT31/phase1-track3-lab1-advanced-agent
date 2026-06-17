@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflexion Agent Dashboard</title>
+    <meta name="description" content="Comparison dashboard for ReAct and Reflexion Agents with performance metrics and cost calculator.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #161b2c;
+            --bg-card: rgba(22, 27, 44, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #a855f7;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 2rem 1.5rem;
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .logo-title h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .logo-title p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Upload Zone */
+        .upload-container {
+            background: var(--bg-card);
+            border: 2px dashed rgba(6, 182, 212, 0.4);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(12px);
+            margin-bottom: 2rem;
+            box-shadow: var(--glass-glow);
+        }
+
+        .upload-container:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(22, 27, 44, 0.85);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+        }
+
+        .upload-container input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent-cyan);
+            animation: bounce 2s infinite;
+        }
+
+        .upload-text h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .upload-text p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Grid Layout for Stats Card */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--glass-glow);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .stats-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .stats-card.cyan::before { background: var(--accent-cyan); }
+        .stats-card.purple::before { background: var(--accent-purple); }
+        .stats-card.green::before { background: var(--accent-green); }
+        .stats-card.red::before { background: var(--accent-red); }
+
+        .stats-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            margin-bottom: 0.25rem;
+        }
+
+        .stats-subtext {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Visualization and Details Columns */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Table Card & Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .agent-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .agent-react {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .agent-reflexion {
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--accent-purple);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .metric-highlight {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .delta-positive {
+            color: var(--accent-green);
+        }
+
+        .delta-negative {
+            color: var(--accent-red);
+        }
+
+        /* Cost Calculation Settings */
+        .calculator-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .calc-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .calc-input-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .calc-input-group input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-cyan);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .calc-input-group input[type="number"] {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
+
+        .calc-input-group input[type="number"]:focus {
+            border-color: var(--accent-cyan);
+        }
+
+        .cost-summary {
+            margin-top: 1.5rem;
+            background: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .cost-summary-val {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+            font-family: 'Outfit', sans-serif;
+            margin: 0.25rem 0;
+        }
+
+        /* Charts Section Layout */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-box {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Animations */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        /* Dynamic classes */
+        .hidden {
+            display: none;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .notification button {
+            background: var(--accent-cyan);
+            border: none;
+            color: var(--bg-primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .notification button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Toast for notifications -->
+        <div id="toast-message" class="toast hidden"></div>
+
+        <header>
+            <div class="logo-title">
+                <h1>Reflexion Agent Dashboard</h1>
+                <p id="metadata-subtitle">Tập dữ liệu: Đang chờ upload...</p>
+            </div>
+            <div style="font-size: 0.85rem; text-align: right; color: var(--text-secondary);">
+                <div>Chế độ chạy: <span id="run-mode" style="font-weight: 600; color: var(--accent-cyan); text-transform: uppercase;">Mock</span></div>
+                <div id="run-timestamp">Thời gian: --/--/----</div>
+            </div>
+        </header>
+
+        <!-- Fallback/Help Notification -->
+        <div id="cors-notice" class="notification">
+            <div>
+                <strong>💡 Mẹo:</strong> Mở dashboard từ server cục bộ để tự động nạp `report.json` mới nhất. Hoặc kéo thả / chọn file `report.json` trong thư mục `outputs/sample_run/` của dự án vào vùng bên dưới để hiển thị kết quả tức thì.
+            </div>
+            <button onclick="document.getElementById('cors-notice').classList.add('hidden')">Đóng</button>
+        </div>
+
+        <!-- Drag & Drop Upload Zone -->
+        <div class="upload-container" id="drop-zone">
+            <input type="file" id="file-input" accept=".json">
+            <div class="upload-icon">📥</div>
+            <div class="upload-text">
+                <h3>Kéo & thả file report.json tại đây</h3>
+                <p>hoặc nhấn để duyệt file từ máy tính của bạn</p>
+            </div>
+        </div>
+
+        <!-- Stats Grid cards -->
+        <div class="stats-grid">
+            <div class="card stats-card cyan">
+                <div class="stats-label">Tổng số ví dụ</div>
+                <div class="stats-value" id="stat-total-examples">0</div>
+                <div class="stats-subtext" id="stat-sub-records">0 bản ghi benchmark</div>
+            </div>
+            <div class="card stats-card purple">
+                <div class="stats-label">Độ chính xác ReAct</div>
+                <div class="stats-value" id="stat-react-em">0.0%</div>
+                <div class="stats-subtext" id="stat-sub-react-correct">0 / 0 câu đúng</div>
+            </div>
+            <div class="card stats-card green">
+                <div class="stats-label">Độ chính xác Reflexion</div>
+                <div class="stats-value" id="stat-reflexion-em">0.0%</div>
+                <div class="stats-subtext" id="stat-sub-reflexion-correct">0 / 0 câu đúng</div>
+            </div>
+            <div class="card stats-card cyan">
+                <div class="stats-label">Cải thiện độ chính xác</div>
+                <div class="stats-value" id="stat-delta-em">+0.0%</div>
+                <div class="stats-subtext" id="stat-sub-delta">Nâng cao hiệu suất Agent</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Left Side: Table & Charts -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <!-- Table Card -->
+                <div class="card">
+                    <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Bảng so sánh ReACT và Reflexion Agent</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Chỉ số (Metric)</th>
+                                    <th>ReAct Agent</th>
+                                    <th>Reflexion Agent</th>
+                                    <th>Độ lệch (Delta)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Độ chính xác (Exact Match)</td>
+                                    <td><span class="agent-badge agent-react" id="table-react-em">0%</span></td>
+                                    <td><span class="agent-badge agent-reflexion" id="table-reflexion-em">0%</span></td>
+                                    <td class="metric-highlight" id="table-delta-em">0%</td>
+                                </tr>
+                                <tr>
+                                    <td>Lượt thử trung bình (Avg attempts)</td>
+                                    <td id="table-react-attempts">0</td>
+                                    <td id="table-reflexion-attempts">0</td>
+                                    <td id="table-delta-attempts">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Ước tính Token trung bình</td>
+                                    <td id="table-react-tokens">0</td>
+                                    <td id="table-reflexion-tokens">0</td>
+                                    <td id="table-delta-tokens">0</td>
+                                </tr>
+                                <tr>
+                                    <td>Thời gian chạy trung bình (ms)</td>
+                                    <td id="table-react-latency">0</td>
+                                    <td id="table-reflexion-latency">0</td>
+                                    <td id="table-delta-latency">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Visualization row -->
+                <div class="card">
+                    <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Biểu đồ hiệu năng</h2>
+                    <div class="charts-row">
+                        <div class="chart-box">
+                            <canvas id="chart-em"></canvas>
+                        </div>
+                        <div class="chart-box">
+                            <canvas id="chart-resources"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Cost and Failure Analysis -->
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                <!-- Cost Calculator Card -->
+                <div class="card">
+                    <h2 style="font-size: 1.25rem; margin-bottom: 0.5rem;">Ước tính Chi Phí (Cost Estimate)</h2>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">Tự động tính toán dựa trên khối lượng token và thời gian chạy thực tế.</p>
+                    
+                    <div class="calculator-grid">
+                        <div class="calc-input-group">
+                            <label>
+                                <span>Giá Input Token ($/1M tokens)</span>
+                                <span id="val-input-price" style="font-weight: 600; color: var(--accent-cyan);">$0.15</span>
+                            </label>
+                            <input type="range" id="price-input" min="0" max="2" step="0.05" value="0.15">
+                        </div>
+
+                        <div class="calc-input-group">
+                            <label>
+                                <span>Giá Output Token ($/1M tokens)</span>
+                                <span id="val-output-price" style="font-weight: 600; color: var(--accent-cyan);">$0.60</span>
+                            </label>
+                            <input type="range" id="price-output" min="0" max="5" step="0.10" value="0.60">
+                        </div>
+
+                        <div class="calc-input-group">
+                            <label>
+                                <span>Tỉ lệ Prompt/Completion Token</span>
+                                <span id="val-ratio" style="font-weight: 600; color: var(--accent-cyan);">80% / 20%</span>
+                            </label>
+                            <input type="range" id="ratio-slider" min="50" max="95" step="5" value="80">
+                        </div>
+                    </div>
+
+                    <div class="cost-summary">
+                        <div class="stats-label" style="margin-bottom: 0;">Tổng chi phí LLM (Toàn bộ Benchmark)</div>
+                        <div class="cost-summary-val" id="total-cost-val">$0.0000</div>
+                        <div class="stats-subtext" style="color: var(--accent-cyan);" id="cost-per-query">Chi phí trung bình/câu hỏi: $0.0000</div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-secondary);">Tổng thời gian chạy (ReAct + Reflexion):</span>
+                            <span style="font-weight: 600;" id="total-runtime">0.0 s</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-secondary);">Thời gian trung bình/câu (ReAct):</span>
+                            <span style="font-weight: 600;" id="react-avg-time">0.0 s</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-secondary);">Thời gian trung bình/câu (Reflexion):</span>
+                            <span style="font-weight: 600;" id="reflexion-avg-time">0.0 s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Failure breakdown card -->
+                <div class="card">
+                    <h2 style="font-size: 1.25rem; margin-bottom: 1rem;">Phân tích các lỗi phổ biến (Failure Modes)</h2>
+                    <div class="chart-box" style="height: 250px;">
+                        <canvas id="chart-failures"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for loaded data & charts
+        let reportData = null;
+        let chartEM = null;
+        let chartResources = null;
+        let chartFailures = null;
+
+        // Document elements
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const toast = document.getElementById('toast-message');
+
+        // Inputs for calculator
+        const priceInput = document.getElementById('price-input');
+        const priceOutput = document.getElementById('price-output');
+        const ratioSlider = document.getElementById('ratio-slider');
+
+        // Initial setup
+        window.addEventListener('DOMContentLoaded', () => {
+            // Setup Upload Event Listeners
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.background = 'rgba(6, 182, 212, 0.08)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.background = 'var(--bg-card)';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.background = 'var(--bg-card)';
+                if (e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            // Calculator inputs update listener
+            [priceInput, priceOutput, ratioSlider].forEach(input => {
+                input.addEventListener('input', () => {
+                    updateCalculatorValues();
+                    if (reportData) updateCosts();
+                });
+            });
+
+            // Set dynamic current date
+            document.getElementById('run-timestamp').innerText = `Thời gian: ${new Date().toLocaleDateString('vi-VN')}`;
+
+            // Try to load automatically
+            autoFetchReport();
+        });
+
+        // Toast notification helper
+        function showToast(message, duration = 3000) {
+            toast.innerText = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, duration);
+        }
+
+        // Auto fetch the local report.json
+        async function autoFetchReport() {
+            const pathsToTry = [
+                'outputs/sample_run/report.json',
+                'report.json',
+                '../outputs/sample_run/report.json'
+            ];
+
+            for (const path of pathsToTry) {
+                try {
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        const json = await response.json();
+                        console.log(`Successfully auto-loaded report from: ${path}`);
+                        reportData = json;
+                        renderDashboard(json);
+                        showToast("Nạp kết quả mới nhất thành công!");
+                        document.getElementById('cors-notice').classList.add('hidden');
+                        return;
+                    }
+                } catch (e) {
+                    // Fail silently and try next path
+                }
+            }
+            console.log("Could not auto-load report.json due to CORS/relative paths. Upload file manually.");
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                processFile(e.target.files[0]);
+            }
+        }
+
+        function processFile(file) {
+            if (!file.name.endsWith('.json')) {
+                showToast("Vui lòng tải lên file định dạng JSON!");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    // Validate basic payload schema
+                    if (!json.meta || !json.summary || !json.failure_modes) {
+                        showToast("File JSON không hợp lệ hoặc thiếu các trường meta/summary/failure_modes.");
+                        return;
+                    }
+                    reportData = json;
+                    renderDashboard(json);
+                    showToast("Đã tải lên và hiển thị báo cáo thành công!");
+                } catch (err) {
+                    showToast("Lỗi khi đọc và giải mã file JSON!");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateCalculatorValues() {
+            document.getElementById('val-input-price').innerText = `$${parseFloat(priceInput.value).toFixed(2)}`;
+            document.getElementById('val-output-price').innerText = `$${parseFloat(priceOutput.value).toFixed(2)}`;
+            
+            const promptRatio = parseInt(ratioSlider.value);
+            const completionRatio = 100 - promptRatio;
+            document.getElementById('val-ratio').innerText = `${promptRatio}% / ${completionRatio}%`;
+        }
+
+        function renderDashboard(data) {
+            // 1. Metadata
+            document.getElementById('metadata-subtitle').innerText = `Tập dữ liệu: ${data.meta.dataset} (${data.meta.num_records} records)`;
+            document.getElementById('run-mode').innerText = data.meta.mode || 'mock';
+            
+            const totalCount = data.meta.num_records;
+            const reactSummary = data.summary.react || {};
+            const reflexionSummary = data.summary.reflexion || {};
+            const deltaSummary = data.summary.delta_reflexion_minus_react || {};
+
+            // 2. Stats Grid
+            document.getElementById('stat-total-examples').innerText = (totalCount / 2).toFixed(0);
+            document.getElementById('stat-sub-records').innerText = `${totalCount} bản ghi benchmark`;
+
+            const reactEM = (reactSummary.em || 0) * 100;
+            const reflexionEM = (reflexionSummary.em || 0) * 100;
+            const deltaEM = (deltaSummary.em_abs || 0) * 100;
+
+            document.getElementById('stat-react-em').innerText = `${reactEM.toFixed(1)}%`;
+            document.getElementById('stat-sub-react-correct').innerText = `${((totalCount / 2) * (reactSummary.em || 0)).toFixed(0)} / ${(totalCount / 2)} câu đúng`;
+
+            document.getElementById('stat-reflexion-em').innerText = `${reflexionEM.toFixed(1)}%`;
+            document.getElementById('stat-sub-reflexion-correct').innerText = `${((totalCount / 2) * (reflexionSummary.em || 0)).toFixed(0)} / ${(totalCount / 2)} câu đúng`;
+
+            document.getElementById('stat-delta-em').innerText = deltaEM >= 0 ? `+${deltaEM.toFixed(1)}%` : `${deltaEM.toFixed(1)}%`;
+            document.getElementById('stat-sub-delta').innerText = deltaEM >= 0 ? `Phản chiếu cải tiến tốt hơn` : `Không cải tiến tốt hơn`;
+            
+            const deltaCard = document.getElementById('stat-delta-em').parentElement;
+            if (deltaEM > 0) {
+                deltaCard.className = "card stats-card green";
+            } else if (deltaEM < 0) {
+                deltaCard.className = "card stats-card red";
+            } else {
+                deltaCard.className = "card stats-card cyan";
+            }
+
+            // 3. Table elements
+            document.getElementById('table-react-em').innerText = `${reactEM.toFixed(1)}%`;
+            document.getElementById('table-reflexion-em').innerText = `${reflexionEM.toFixed(1)}%`;
+            const deltaEMTableCell = document.getElementById('table-delta-em');
+            deltaEMTableCell.innerText = deltaEM >= 0 ? `+${deltaEM.toFixed(1)}%` : `${deltaEM.toFixed(1)}%`;
+            deltaEMTableCell.className = deltaEM >= 0 ? "metric-highlight delta-positive" : "metric-highlight delta-negative";
+
+            document.getElementById('table-react-attempts').innerText = (reactSummary.avg_attempts || 1).toFixed(2);
+            document.getElementById('table-reflexion-attempts').innerText = (reflexionSummary.avg_attempts || 0).toFixed(2);
+            const deltaAttempts = (deltaSummary.attempts_abs || 0);
+            document.getElementById('table-delta-attempts').innerText = deltaAttempts >= 0 ? `+${deltaAttempts.toFixed(2)}` : `${deltaAttempts.toFixed(2)}`;
+
+            document.getElementById('table-react-tokens').innerText = (reactSummary.avg_token_estimate || 0).toLocaleString();
+            document.getElementById('table-reflexion-tokens').innerText = (reflexionSummary.avg_token_estimate || 0).toLocaleString();
+            const deltaTokens = (deltaSummary.tokens_abs || 0);
+            const deltaTokensCell = document.getElementById('table-delta-tokens');
+            deltaTokensCell.innerText = deltaTokens >= 0 ? `+${deltaTokens.toLocaleString()}` : `${deltaTokens.toLocaleString()}`;
+            deltaTokensCell.className = deltaTokens <= 0 ? "delta-positive" : "delta-negative";
+
+            document.getElementById('table-react-latency').innerText = (reactSummary.avg_latency_ms || 0).toLocaleString();
+            document.getElementById('table-reflexion-latency').innerText = (reflexionSummary.avg_latency_ms || 0).toLocaleString();
+            const deltaLatency = (deltaSummary.latency_abs || 0);
+            const deltaLatencyCell = document.getElementById('table-delta-latency');
+            deltaLatencyCell.innerText = deltaLatency >= 0 ? `+${deltaLatency.toLocaleString()}` : `${deltaLatency.toLocaleString()}`;
+            deltaLatencyCell.className = deltaLatency <= 0 ? "delta-positive" : "delta-negative";
+
+            // 4. Update Costs & Times
+            updateCosts();
+            
+            // Total latency of the run (sum of average latencies of all records run)
+            const numExamples = totalCount / 2;
+            const totalRuntimeMs = (reactSummary.avg_latency_ms || 0) * numExamples + (reflexionSummary.avg_latency_ms || 0) * numExamples;
+            document.getElementById('total-runtime').innerText = `${(totalRuntimeMs / 1000).toFixed(1)} s`;
+            document.getElementById('react-avg-time').innerText = `${((reactSummary.avg_latency_ms || 0) / 1000).toFixed(2)} s`;
+            document.getElementById('reflexion-avg-time').innerText = `${((reflexionSummary.avg_latency_ms || 0) / 1000).toFixed(2)} s`;
+
+            // 5. Build Charts
+            buildPerformanceCharts(reactEM, reflexionEM, reactSummary, reflexionSummary);
+            buildFailureChart(data.failure_modes);
+        }
+
+        function updateCosts() {
+            if (!reportData) return;
+            const totalCount = reportData.meta.num_records;
+            const numExamples = totalCount / 2;
+            const reactSummary = reportData.summary.react || {};
+            const reflexionSummary = reportData.summary.reflexion || {};
+
+            const inputPrice = parseFloat(priceInput.value);
+            const outputPrice = parseFloat(priceOutput.value);
+            const promptRatio = parseInt(ratioSlider.value) / 100;
+            const completionRatio = 1.0 - promptRatio;
+
+            // Total prompt tokens and completion tokens
+            // ReAct total tokens:
+            const reactTotalTokens = (reactSummary.avg_token_estimate || 0) * numExamples;
+            // Reflexion total tokens:
+            const reflexionTotalTokens = (reflexionSummary.avg_token_estimate || 0) * numExamples;
+            const totalTokens = reactTotalTokens + reflexionTotalTokens;
+
+            const inputTokens = totalTokens * promptRatio;
+            const outputTokens = totalTokens * completionRatio;
+
+            // Costs
+            const inputCost = (inputTokens / 1000000) * inputPrice;
+            const outputCost = (outputTokens / 1000000) * outputPrice;
+            const totalCost = inputCost + outputCost;
+
+            document.getElementById('total-cost-val').innerText = `$${totalCost.toFixed(5)}`;
+            document.getElementById('cost-per-query').innerText = `Chi phí trung bình/câu hỏi: $${(totalCost / numExamples).toFixed(5)}`;
+        }
+
+        function buildPerformanceCharts(reactEM, reflexionEM, reactSummary, reflexionSummary) {
+            // Destruct old charts
+            if (chartEM) chartEM.destroy();
+            if (chartResources) chartResources.destroy();
+
+            // EM Chart
+            const ctxEM = document.getElementById('chart-em').getContext('2d');
+            chartEM = new Chart(ctxEM, {
+                type: 'bar',
+                data: {
+                    labels: ['ReAct Agent', 'Reflexion Agent'],
+                    datasets: [{
+                        label: 'Độ chính xác (Exact Match %)',
+                        data: [reactEM, reflexionEM],
+                        backgroundColor: ['rgba(6, 182, 212, 0.6)', 'rgba(168, 85, 247, 0.6)'],
+                        borderColor: ['#06b6d4', '#a855f7'],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'So sánh Độ Chính Xác (EM %)', color: '#f3f4f6', font: { family: 'Outfit', size: 14 } }
+                    },
+                    scales: {
+                        y: {
+                            max: 100,
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // Resource Chart (Tokens and Latency side by side)
+            const ctxRes = document.getElementById('chart-resources').getContext('2d');
+            chartResources = new Chart(ctxRes, {
+                type: 'bar',
+                data: {
+                    labels: ['Tokens trung bình', 'Thời gian chạy trung bình (x10 ms)'],
+                    datasets: [
+                        {
+                            label: 'ReAct Agent',
+                            data: [reactSummary.avg_token_estimate || 0, (reactSummary.avg_latency_ms || 0) / 10],
+                            backgroundColor: 'rgba(6, 182, 212, 0.5)',
+                            borderColor: '#06b6d4',
+                            borderWidth: 1.5,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Reflexion Agent',
+                            data: [reflexionSummary.avg_token_estimate || 0, (reflexionSummary.avg_latency_ms || 0) / 10],
+                            backgroundColor: 'rgba(168, 85, 247, 0.5)',
+                            borderColor: '#a855f7',
+                            borderWidth: 1.5,
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6', font: { family: 'Inter' } } },
+                        title: { display: true, text: 'So sánh Token và Thời Gian Chạy', color: '#f3f4f6', font: { family: 'Outfit', size: 14 } }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        x: {
+                            ticks: { color: '#9ca3af' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function buildFailureChart(failures) {
+            if (chartFailures) chartFailures.destroy();
+
+            // Extract labels (failure mode names) and data for React vs Reflexion
+            // In the new reporting code, failures keys are failure mode names (e.g. wrong_final_answer, entity_drift, etc.)
+            // In the old reporting code, failures keys were agent types (react, reflexion)
+            const labels = [];
+            const reactData = [];
+            const reflexionData = [];
+
+            // Let's check structure
+            const keys = Object.keys(failures);
+            let isOldFormat = keys.includes('react') || keys.includes('reflexion');
+
+            if (isOldFormat) {
+                // Old format: keys are react, reflexion
+                const reactFailures = failures.react || {};
+                const reflexionFailures = failures.reflexion || {};
+                
+                // Collect all failure types
+                const allFailureTypes = new Set([
+                    ...Object.keys(reactFailures),
+                    ...Object.keys(reflexionFailures)
+                ]);
+                allFailureTypes.delete('none'); // remove 'none' to focus on actual errors
+
+                allFailureTypes.forEach(type => {
+                    labels.push(type);
+                    reactData.push(reactFailures[type] || 0);
+                    reflexionData.push(reflexionFailures[type] || 0);
+                });
+            } else {
+                // New format: keys are failure types themselves
+                keys.forEach(type => {
+                    labels.push(type);
+                    reactData.push(failures[type].react || 0);
+                    reflexionData.push(failures[type].reflexion || 0);
+                });
+            }
+
+            // Ensure we have at least some labels to render
+            if (labels.length === 0) {
+                labels.push("Không có lỗi");
+                reactData.push(0);
+                reflexionData.push(0);
+            }
+
+            // Map Vietnamese readable labels
+            const vietnameseLabels = labels.map(label => {
+                switch(label) {
+                    case 'wrong_final_answer': return 'Sai kết quả cuối';
+                    case 'incomplete_multi_hop': return 'Thiếu hop thông tin';
+                    case 'entity_drift': return 'Trôi lệch thực thể';
+                    case 'looping': return 'Vòng lặp vô hạn';
+                    case 'reflection_overfit': return 'Quá khớp phản chiếu';
+                    default: return label;
+                }
+            });
+
+            const ctxFail = document.getElementById('chart-failures').getContext('2d');
+            chartFailures = new Chart(ctxFail, {
+                type: 'radar',
+                data: {
+                    labels: vietnameseLabels,
+                    datasets: [
+                        {
+                            label: 'ReAct Agent',
+                            data: reactData,
+                            backgroundColor: 'rgba(6, 182, 212, 0.2)',
+                            borderColor: '#06b6d4',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#06b6d4'
+                        },
+                        {
+                            label: 'Reflexion Agent',
+                            data: reflexionData,
+                            backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                            borderColor: '#a855f7',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#a855f7'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#f3f4f6' } }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                            pointLabels: { color: '#9ca3af', font: { family: 'Inter', size: 10 } },
+                            ticks: { display: false, color: '#9ca3af' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
